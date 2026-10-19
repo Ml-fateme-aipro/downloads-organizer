@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-from organizer import get_category, organize
+from organizer import get_category, organize, undo
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -52,6 +52,16 @@ async def organize_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if allowed(update):
         await run(update, False)
 
+
+async def undo_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not allowed(update):
+        return
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        undo()
+    await update.message.reply_text(buf.getvalue()[:4000] or "Nothing to undo")
+
+
 PROXY = "socks5://127.0.0.1:10808"
 app = (
     ApplicationBuilder()
@@ -67,10 +77,11 @@ app = (
     .get_updates_write_timeout(30)
     .get_updates_pool_timeout(30)
     .build()
-) 
+)
 
 app.add_handler(CommandHandler("myid", myid))
 app.add_handler(CommandHandler("report", report))
 app.add_handler(CommandHandler("preview", preview))
 app.add_handler(CommandHandler("organize", organize_cmd))
+app.add_handler(CommandHandler("undo", undo_cmd))
 app.run_polling(bootstrap_retries=-1)
